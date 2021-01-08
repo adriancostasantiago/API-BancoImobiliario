@@ -1,0 +1,26 @@
+{
+  "name": "API-BancoImobiliario",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodemon index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adriancostasantiago/API-BancoImobiliario.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/adriancostasantiago/API-BancoImobiliario/issues"
+  },
+  "homepage": "https://github.com/adriancostasantiago/API-BancoImobiliario#readme",
+  "dependencies": {
+    "express": "^4.17.1",
+    "knex": "^0.21.15",
+    "mysql2": "^2.2.5",
+    "nodemon": "^2.0.7"
+  }
+}
