@@ -64,15 +64,16 @@ class TaskController {
     async apagarTarefa(request, response) {
         const id = request.params['id']
 
-        const sql = 'DELETE FROM tasks WHERE id = ' + id + ';'
+        const sql = `DELETE FROM tasks WHERE id = ${id}`
 
         try {
             const result = await database.query(sql)
 
             response.json(result[0])
+
         } catch (error) {
             response.status(400)
-            response.json({ message: error.sqlMessage })
+            response.json({ message: 'erro 404' })
         }
     }
 

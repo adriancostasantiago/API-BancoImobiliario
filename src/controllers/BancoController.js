@@ -114,12 +114,61 @@ class BancoController {
             '    ' + valor + '       ' +
             ' );                     '
 
+        var sql =
+            ''
 
         try {
-            const result = await database.query(sql)
+            var result = await database.query(sql)
             result = await database.query(sql2)
 
             response.json(result[0])
+        } catch (error) {
+            response.status(400)
+            response.json({ message: error.sqlMessage })
+        }
+    }
+
+    async saque(request, response) {
+        const { usuario, banco, valor } = request.body
+
+        // const valoratualizado = valor +
+        //     '+ (SELECT saldo FROM conta WHERE usuario = "' + usuario + '" and banco = "' + banco + ' LIMIT 1")'
+
+        const id = '(SELECT id FROM conta WHERE usuario = "' + usuario + '" and banco = "' + banco + '")'
+
+        try {
+            var result = await database.query(sql)
+
+            if (result[0][0].saldo < valor) {
+                sql =
+                    'UPDATE                                                     ' +
+                    '   conta                                                   ' +
+                    'SET                                                        ' +
+                    '   saldo = ' + valor + ' - saldo                           ' +
+                    'WHERE                                                      ' +
+                    '   usuario = "' + usuario + '"                             ' +
+                    '   and banco = "' + banco + '" '
+
+                result = await database.query(sql)
+
+                sql =
+                    'INSERT INTO operacoes(  ' +
+                    '   contacreditoid,      ' +
+                    '   operacao,            ' +
+                    '   valor                ' +
+                    ')                       ' +
+                    'VALUES (                ' +
+                    '    ' + id + ',         ' +
+                    '    "SAQUE",            ' +
+                    '    ' + valor + '       ' +
+                    ' );                     '
+
+                result = await database.query(sql)
+                response.json(result[0])
+            }
+            else
+                response.status(400).json({ message: 'Saldo insuficiente' })
+
         } catch (error) {
             response.status(400)
             response.json({ message: error.sqlMessage })
