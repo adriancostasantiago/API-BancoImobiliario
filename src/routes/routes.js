@@ -22,7 +22,7 @@ router.post('/saque', BancoController.saque)
 
 router.post('/pagamento', BancoController.pagamento)
 
-router.get('/:nome', (resquest, response) => {
+router.get('/info/:nome', (resquest, response) => {
     response.send(`My name is ${request.params['nome']}`)
 })
 
