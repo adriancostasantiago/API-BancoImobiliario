@@ -2,7 +2,7 @@ const database = require('../database/connection')
 
 async function GetConta(usuario) {
 
-    const sql = 'SELECT saldo, id FROM conta WHERE usuario = "' + usuario + '" '
+    const sql = 'SELECT * FROM conta WHERE usuario = "' + usuario + '" '
 
     try {
         const result = await database.query(sql)
@@ -125,39 +125,22 @@ class BancoController {
     async deposito(request, response) {
         const { usuario, banco, valor } = request.body
 
-        // const valoratualizado = valor +
-        //     '+ (SELECT saldo FROM conta WHERE usuario = "' + usuario + '" and banco = "' + banco + ' LIMIT 1")'
+        const conta = await GetConta(usuario)
 
-        const id = '(SELECT id FROM conta WHERE usuario = "' + usuario + '" and banco = "' + banco + '")'
-
-        var sql =
-            'UPDATE                                                     ' +
-            '   conta                                                   ' +
-            'SET                                                        ' +
-            '   saldo = ' + valor + ' + saldo                           ' +
-            'WHERE                                                      ' +
-            '   usuario = "' + usuario + '" and banco = "' + banco + '" '
-
-        var sql2 =
-            'INSERT INTO operacoes(  ' +
-            '   contacreditoid,      ' +
-            '   operacao,            ' +
-            '   valor                ' +
-            ')                       ' +
-            'VALUES (                ' +
-            '    ' + id + ',         ' +
-            '    "DEPOSITO",         ' +
-            '    ' + valor + '       ' +
-            ' );                     '
-
-        var sql =
-            ''
+        if (conta == undefined) {
+            response.status(400).json({ message: 'Conta inexistente!' })
+            return
+        }
 
         try {
-            var result = await database.query(sql)
-            result = await database.query(sql2)
+            await database.execute(sql)
 
-            response.json(result[0])
+            SetOperacao("DEPOSITO", valor, {
+                contacreditoid: conta.id
+            })
+
+            response.json({ message: "Depósito realizado com sucesso!" })
+
         } catch (error) {
             response.status(400)
             response.json({ message: error.sqlMessage })
@@ -179,18 +162,17 @@ class BancoController {
             return
         }
 
+        var saldoatualizado = parseFloat(conta.saldo) - parseFloat(valor)
+
+        var sql =
+            'UPDATE                                 ' +
+            '   conta                               ' +
+            'SET                                    ' +
+            '   saldo =   ' + saldoatualizado + '   ' +
+            'WHERE                                  ' +
+            '   usuario     = "' + usuario + '"     '
+
         try {
-
-            var saldoatualizado = parseFloat(conta.saldo) - parseFloat(valor)
-
-            var sql =
-                'UPDATE                                 ' +
-                '   conta                               ' +
-                'SET                                    ' +
-                '   saldo =   ' + saldoatualizado + '   ' +
-                'WHERE                                  ' +
-                '   usuario     = "' + usuario + '"     '
-
             await database.execute(sql)
 
             SetOperacao("SAQUE", valor, {
