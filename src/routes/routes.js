@@ -21,9 +21,10 @@ router.post('/deposito', BancoController.deposito)
 router.post('/saque', BancoController.saque)
 
 router.post('/pagamento', BancoController.pagamento)
+router.post('/transferencia', BancoController.transferencia)
 
-router.get('/info/:nome', (resquest, response) => {
-    response.send(`My name is ${request.params['nome']}`)
+router.get('/info', (request, response) => {
+    response.send(`My name is ${request.query.nome} ${request.query.sobrenome}`)
 })
 
 module.exports = router
