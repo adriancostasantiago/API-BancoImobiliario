@@ -21,10 +21,10 @@ router.get('/conta', BancoController.listarContas)
 
 router.get('/conta/:usuario', BancoController.listarUmaConta)
 
-router.put('/atualizar/conta/:id', BancoController.atualizarConta)
+router.post('/atualizar/conta/:id', BancoController.atualizarConta)
 
-router.put('/deposito', BancoController.deposito)
+router.post('/deposito', BancoController.deposito)
 
-router.put('/saque', BancoController.saque)
+router.post('/saque', BancoController.saque)
 
 module.exports = router
