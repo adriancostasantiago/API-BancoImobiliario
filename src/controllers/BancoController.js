@@ -13,24 +13,48 @@ async function GetConta(usuario) {
     }
 }
 
-async function SetOperacao(operacao, valor, { contadebitoid = -1, contacreditoid = -1 }) {
+async function atualizaConta(conta, valor) {
+    const sql =
+        'UPDATE                                 ' +
+        '   conta                               ' +
+        'SET                                    ' +
+        '   usuario = ' + conta.usuario + ',    ' +
+        '   banco   = ' + conta.banco + ',      ' +
+        '   saldo   = ' + valor + '             ' +
+        'WHERE                                  ' +
+        '   id = ' + contaid + '                '
+
+    try {
+        await database.execute(sql)
+    } catch (error) {
+        throw error
+    }
+
+}
+
+async function SetOperacao(operacao, valor, { codigo = '00000000', contadebitoid = -1, contacreditoid = -1 }) {
 
     const sql =
         'INSERT INTO operacoes(         ' +
         '   operacao,                   ' +
         '   valor,                      ' +
+        '   codigo,                     ' +
         '   contacreditoid,             ' +
         '   contadebitoid               ' +
         ')                              ' +
         'VALUES (                       ' +
         '    "' + operacao + '",        ' +
         '    ' + valor + ',             ' +
+        '    ' + codigo + ',            ' +
         '    ' + contacreditoid + ',    ' +
         '    ' + contadebitoid + '      ' +
         ' );                            '
 
     try {
-        await database.execute(sql)
+        const result = await database.query(sql)
+
+        console.log(result)
+
     } catch (error) {
         throw error
     }
@@ -191,6 +215,60 @@ class BancoController {
             response.json({ message: "sucesso!" })
 
         } catch (error) {
+            response.status(400)
+            response.json({ message: error.sqlMessage })
+        }
+    }
+
+    async pagamento(request, response) {
+        const { usuario, banco_debito, codigo, banco_credito, conta_credito } = request.body
+
+        var contacreditoid = -1
+        var contaDebitoid = -1
+
+        try {
+            if (banco_debito = 'NiggaBank') {
+                const contaDebito = await GetConta(usuario)
+
+                if (contaDebito != undefined) {
+
+                    contaDebitoid = contaDebito.id
+
+                    if (contaDebito.saldo < valor) {
+                        response.status(400).json({ message: 'Saldo insuficiente!' })
+                        return
+                    }
+
+                    var saldoatualizado = parseFloat(contaDebito.saldo) - parseFloat(valor)
+
+                    atualizaConta(contaDebito, saldoatualizado)
+                }
+                else
+                    response.status(400).json({ message: 'Conta inexistente!' })
+            }
+
+            if (banco_credito = 'NiggaBank') {
+                const contaCredito = await GetConta(usuario)
+
+                if (contaCredito != undefined) {
+
+                    contacreditoid = contaCredito.id
+
+                    var saldoatualizado = parseFloat(contaCredito.saldo) + parseFloat(valor)
+
+                    atualizaConta(contaCredito, saldoatualizado)
+                }
+                else
+                    response.status(400).json({ message: 'Conta inexistente!' })
+            }
+
+            SetOperacao("PAGAMENTO", valor, {
+                codigo: codigo,
+                contadebitoid: contaDeditoid,
+                contaCreditoid: contacreditoid
+            })
+        }
+        catch (error) {
             response.status(400)
             response.json({ message: error.sqlMessage })
         }
