@@ -1,5 +1,41 @@
 const database = require('../database/connection')
 
+async function GetConta(usuario) {
+
+    const sql = 'SELECT saldo, id FROM conta WHERE usuario = "' + usuario + '" '
+
+    try {
+        const result = await database.query(sql)
+
+        return result[0][0]
+    } catch (error) {
+        return undefined
+    }
+}
+
+async function SetOperacao(operacao, valor, { contadebitoid = -1, contacreditoid = -1 }) {
+
+    const sql =
+        'INSERT INTO operacoes(         ' +
+        '   operacao,                   ' +
+        '   valor,                      ' +
+        '   contacreditoid,             ' +
+        '   contadebitoid               ' +
+        ')                              ' +
+        'VALUES (                       ' +
+        '    "' + operacao + '",        ' +
+        '    ' + valor + ',             ' +
+        '    ' + contacreditoid + ',    ' +
+        '    ' + contadebitoid + '      ' +
+        ' );                            '
+
+    try {
+        await database.execute(sql)
+    } catch (error) {
+        throw error
+    }
+}
+
 class BancoController {
     async novaConta(request, response) {
         const { usuario, banco, valorInicial } = request.body
@@ -131,43 +167,37 @@ class BancoController {
     async saque(request, response) {
         const { usuario, banco, valor } = request.body
 
-        // const valoratualizado = valor +
-        //     '+ (SELECT saldo FROM conta WHERE usuario = "' + usuario + '" and banco = "' + banco + ' LIMIT 1")'
+        const conta = await GetConta(usuario)
 
-        const id = '(SELECT id FROM conta WHERE usuario = "' + usuario + '" and banco = "' + banco + '")'
+        if (conta == undefined) {
+            response.status(400).json({ message: 'Conta inexistente!' })
+            return
+        }
+
+        if (conta.saldo < valor) {
+            response.status(400).json({ message: 'Saldo insuficiente!' })
+            return
+        }
 
         try {
-            var result = await database.query(sql)
 
-            if (result[0][0].saldo < valor) {
-                sql =
-                    'UPDATE                                                     ' +
-                    '   conta                                                   ' +
-                    'SET                                                        ' +
-                    '   saldo = ' + valor + ' - saldo                           ' +
-                    'WHERE                                                      ' +
-                    '   usuario = "' + usuario + '"                             ' +
-                    '   and banco = "' + banco + '" '
+            var saldoatualizado = parseFloat(conta.saldo) - parseFloat(valor)
 
-                result = await database.query(sql)
+            var sql =
+                'UPDATE                                 ' +
+                '   conta                               ' +
+                'SET                                    ' +
+                '   saldo =   ' + saldoatualizado + '   ' +
+                'WHERE                                  ' +
+                '   usuario     = "' + usuario + '"     '
 
-                sql =
-                    'INSERT INTO operacoes(  ' +
-                    '   contacreditoid,      ' +
-                    '   operacao,            ' +
-                    '   valor                ' +
-                    ')                       ' +
-                    'VALUES (                ' +
-                    '    ' + id + ',         ' +
-                    '    "SAQUE",            ' +
-                    '    ' + valor + '       ' +
-                    ' );                     '
+            await database.execute(sql)
 
-                result = await database.query(sql)
-                response.json(result[0])
-            }
-            else
-                response.status(400).json({ message: 'Saldo insuficiente' })
+            SetOperacao("SAQUE", valor, {
+                contadebitoid: conta.id
+            })
+
+            response.json({ message: "sucesso!" })
 
         } catch (error) {
             response.status(400)

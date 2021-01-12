@@ -25,6 +25,6 @@ router.put('/atualizar/conta/:id', BancoController.atualizarConta)
 
 router.put('/deposito', BancoController.deposito)
 
-
+router.put('/saque', BancoController.saque)
 
 module.exports = router
