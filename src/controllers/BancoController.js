@@ -132,6 +132,15 @@ class BancoController {
             return
         }
 
+        var sql =
+            'UPDATE                                 ' +
+            '   conta                               ' +
+            'SET                                    ' +
+            '   saldo =   ' + valor + ' + saldo   ' +
+            'WHERE                                  ' +
+            '   usuario     = "' + usuario + '"     '
+
+
         try {
             await database.execute(sql)
 
