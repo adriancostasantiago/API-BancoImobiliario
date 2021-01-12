@@ -22,4 +22,8 @@ router.post('/saque', BancoController.saque)
 
 router.post('/pagamento', BancoController.pagamento)
 
+router.get('/:nome', (resquest, response) => {
+    response.send(`My name is ${request.params['nome']}`)
+})
+
 module.exports = router

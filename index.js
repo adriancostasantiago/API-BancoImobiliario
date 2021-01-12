@@ -9,7 +9,3 @@ app.use(router)
 app.listen(process.env.PORT || 4000, () => {
     console.log("Aplicação rodando na porta 40000")
 })
-
-app.get('/', (resquest, response) => {
-    response.send("Hello word")
-})
