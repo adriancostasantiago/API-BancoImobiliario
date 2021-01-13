@@ -290,8 +290,6 @@ class BancoController {
         var contaCredito_id = -1
         var contaDebito_id = -1
 
-        console.log(banco_debito)
-
         try {
             if (banco_debito == 'NiggaBank') {
 
@@ -313,8 +311,6 @@ class BancoController {
                 else
                     response.status(400).json({ message: 'Conta inexistente!' })
             }
-
-            console.log(banco_credito)
 
             if (banco_credito == 'NiggaBank') {
                 const contaCredito = await GetConta(conta_credito)
