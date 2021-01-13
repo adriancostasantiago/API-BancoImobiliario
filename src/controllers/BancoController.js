@@ -1,12 +1,21 @@
 const database = require('../database/connection')
 
-async function GetConta(usuario) {
+async function cadastrarConta(conta) {
+    const sql = 'INSERT INTO conta (usuario, banco, saldo) VALUES ("' + conta.usuario + '", "' + conta.banco + '", ' + conta.saldo + ')'
 
-    const sql = 'SELECT * FROM conta WHERE usuario = "' + usuario + '" '
+    try {
+        await database.execute(sql)
+    } catch (error) {
+        throw error
+    }
+}
+
+async function GetConta(usuario, banco) {
+
+    const sql = 'SELECT * FROM conta WHERE usuario = "' + usuario + '" AND banco = "' + banco + '" '
 
     try {
         const result = await database.query(sql)
-
         return result[0][0]
     } catch (error) {
         return undefined
@@ -60,14 +69,12 @@ async function SetOperacao(operacao, valor, { codigo = '00000000', contaDebitoId
 
 class BancoController {
     async novaConta(request, response) {
-        const { usuario, banco, valorInicial } = request.body
-
-        const sql = 'INSERT INTO conta (usuario, banco, saldo) VALUES ("' + usuario + '", "' + banco + '", ' + valorInicial + ')'
+        const { usuario, banco, saldo } = request.body
 
         try {
-            const result = await database.query(sql)
+            cadastrarConta(request.body)
 
-            response.json(result[0])
+            response.json({ message: 'Conta cadastrada com sucesso!' })
         } catch (error) {
             response.status(400)
             response.json({ message: error.sqlMessage })
@@ -147,7 +154,7 @@ class BancoController {
     async deposito(request, response) {
         const { usuario, banco, valor } = request.body
 
-        const conta = await GetConta(usuario)
+        const conta = await GetConta(usuario, banco)
 
         if (conta == undefined) {
             response.status(400).json({ message: 'Conta inexistente!' })
@@ -158,7 +165,7 @@ class BancoController {
             'UPDATE                                 ' +
             '   conta                               ' +
             'SET                                    ' +
-            '   saldo =   ' + valor + ' + saldo   ' +
+            '   saldo =   ' + valor + ' + saldo     ' +
             'WHERE                                  ' +
             '   usuario     = "' + usuario + '"     '
 
@@ -181,7 +188,7 @@ class BancoController {
     async saque(request, response) {
         const { usuario, banco, valor } = request.body
 
-        const conta = await GetConta(usuario)
+        const conta = await GetConta(usuario, banco)
 
         if (conta == undefined) {
             response.status(400).json({ message: 'Conta inexistente!' })
@@ -223,51 +230,81 @@ class BancoController {
 
         var contaCredito_id = -1
         var contaDebito_id = -1
-
-        console.log(banco_debito)
+        var saldoatualizado = 0
 
         try {
             if (banco_debito == 'NiggaBank') {
 
-                const contaDebito = await GetConta(usuario)
+                const contaDebito = await GetConta(usuario, banco_debito)
 
-                if (contaDebito != undefined) {
+                if (contaDebito == undefined) {
+                    response.status(400).json({ message: 'Conta inexistente!' })
+                    return
+                }
 
-                    contaDebito_id = contaDebito.id
+                if (contaDebito.saldo < valor) {
+                    response.status(400).json({ message: 'Saldo insuficiente!' })
+                    return
+                }
 
-                    if (contaDebito.saldo < valor) {
-                        response.status(400).json({ message: 'Saldo insuficiente!' })
-                        return
+                contaDebito_id = contaDebito.id
+
+                saldoatualizado = parseFloat(contaDebito.saldo) - parseFloat(valor)
+
+                await atualizaConta(contaDebito, saldoatualizado)
+
+            }
+            else {
+                var contaDebito = await GetConta(usuario, banco_debito)
+
+                if (contaDebito == undefined) {
+                    contaDebito =
+                    {
+                        usuario: usuario,
+                        banco: banco_debito,
+                        saldo: 0
                     }
 
-                    var saldoatualizado = parseFloat(contaDebito.saldo) - parseFloat(valor)
+                    await cadastrarConta(contaDebito)
 
-                    atualizaConta(contaDebito, saldoatualizado)
+                    contaDebito = await GetConta(usuario, banco_debito)
                 }
-                else
-                    response.status(400).json({ message: 'Conta inexistente!' })
-            }
 
-            console.log(banco_credito)
+                contaDebito_id = contaDebito.id
+            }
 
             if (banco_credito == 'NiggaBank') {
-                const contaCredito = await GetConta(conta_credito)
+                const contaCredito = await GetConta(conta_credito, banco_credito)
 
-                if (contaCredito != undefined) {
-
-                    contaCredito_id = contaCredito.id
-
-                    saldoatualizado = parseFloat(contaCredito.saldo) + parseFloat(valor)
-
-                    atualizaConta(contaCredito, saldoatualizado)
-                }
-                else
+                if (contaCredito == undefined) {
                     response.status(400).json({ message: 'Conta inexistente!' })
-            }
+                    return
+                }
 
-            console.log(codigo)
-            console.log(contaDebito_id)
-            console.log(contaCredito_id)
+                contaCredito_id = contaCredito.id
+
+                saldoatualizado = parseFloat(contaCredito.saldo) + parseFloat(valor)
+
+                await atualizaConta(contaCredito, saldoatualizado)
+            }
+            else {
+                var contaCredito = await GetConta(conta_credito, banco_credito)
+
+                if (contaCredito == undefined) {
+                    contaCredito =
+                    {
+                        usuario: conta_credito,
+                        banco: banco_credito,
+                        saldo: 0
+                    }
+
+                    await cadastrarConta(contaCredito)
+
+                    contaCredito = await GetConta(conta_credito, banco_credito)
+                }
+
+                contaCredito_id = contaCredito.id
+            }
 
             await SetOperacao("PAGAMENTO", valor, {
                 codigo: codigo,
@@ -292,39 +329,74 @@ class BancoController {
 
         try {
             if (banco_debito == 'NiggaBank') {
+                const contaDebito = await GetConta(usuario, banco_debito)
 
-                const contaDebito = await GetConta(usuario)
+                if (contaDebito == undefined) {
+                    response.status(400).json({ message: 'Conta de debito inexistente! Não foi possivel realizar a operação.' })
+                    return
+                }
 
-                if (contaDebito != undefined) {
+                if (contaDebito.saldo < valor) {
+                    response.status(400).json({ message: 'Saldo insuficiente! Não foi possivel realizar a operação.' })
+                    return
+                }
 
-                    contaDebito_id = contaDebito.id
+                contaDebito_id = contaDebito.id
 
-                    if (contaDebito.saldo < valor) {
-                        response.status(400).json({ message: 'Saldo insuficiente!' })
-                        return
+                var saldoatualizado = parseFloat(contaDebito.saldo) - parseFloat(valor)
+
+                atualizaConta(contaDebito, saldoatualizado)
+            }
+            else {
+                var contaDebito = await GetConta(usuario, banco_debito)
+
+                if (contaDebito == undefined) {
+                    contaDebito =
+                    {
+                        usuario: usuario,
+                        banco: banco_debito,
+                        saldo: 0
                     }
 
-                    var saldoatualizado = parseFloat(contaDebito.saldo) - parseFloat(valor)
+                    await cadastrarConta(contaDebito)
 
-                    atualizaConta(contaDebito, saldoatualizado)
+                    contaDebito = await GetConta(usuario, banco_debito)
                 }
-                else
-                    response.status(400).json({ message: 'Conta inexistente!' })
+
+                contaDebito_id = contaDebito.id
             }
 
             if (banco_credito == 'NiggaBank') {
-                const contaCredito = await GetConta(conta_credito)
+                const contaCredito = await GetConta(conta_credito, banco_credito)
 
-                if (contaCredito != undefined) {
-
-                    contaCredito_id = contaCredito.id
-
-                    saldoatualizado = parseFloat(contaCredito.saldo) + parseFloat(valor)
-
-                    atualizaConta(contaCredito, saldoatualizado)
+                if (contaCredito == undefined) {
+                    response.status(400).json({ message: 'Conta inexistente! Não foi possivel realizar a operação.' })
+                    return
                 }
-                else
-                    response.status(400).json({ message: 'Conta inexistente!' })
+
+                contaCredito_id = contaCredito.id
+
+                saldoatualizado = parseFloat(contaCredito.saldo) + parseFloat(valor)
+
+                atualizaConta(contaCredito, saldoatualizado)
+            }
+            else {
+                var contaCredito = await GetConta(conta_credito, banco_credito)
+
+                if (contaCredito == undefined) {
+                    contaCredito =
+                    {
+                        usuario: conta_credito,
+                        banco: banco_credito,
+                        saldo: 0
+                    }
+
+                    await cadastrarConta(contaCredito)
+
+                    contaCredito = await GetConta(conta_credito, banco_credito)
+                }
+
+                contaCredito_id = contaCredito.id
             }
 
             await SetOperacao("TRANSFERENCIA", valor, {
@@ -340,8 +412,6 @@ class BancoController {
             response.json({ message: error.sqlMessage })
         }
     }
-
-
 }
 
 module.exports = new BancoController()
